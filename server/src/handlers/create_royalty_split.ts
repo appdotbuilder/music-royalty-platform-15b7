@@ -1,19 +1,51 @@
 
+import { db } from '../db';
+import { royaltySplitsTable, worksTable } from '../db/schema';
 import { type CreateRoyaltySplitInput, type RoyaltySplit } from '../schema';
+import { eq, sum } from 'drizzle-orm';
 
-export async function createRoyaltySplit(input: CreateRoyaltySplitInput): Promise<RoyaltySplit> {
-  // This is a placeholder declaration! Real code should be implemented here.
-  // The goal of this handler is creating royalty split configurations for musical works.
-  // Should validate that total percentages don't exceed 100%, handle different recipient types,
-  // and ensure proper access control for split management.
-  return Promise.resolve({
-    id: 1,
-    work_id: input.work_id,
-    recipient_type: input.recipient_type,
-    recipient_id: input.recipient_id,
-    percentage: input.percentage,
-    role_description: input.role_description,
-    created_at: new Date(),
-    updated_at: new Date()
-  } as RoyaltySplit);
-}
+export const createRoyaltySplit = async (input: CreateRoyaltySplitInput): Promise<RoyaltySplit> => {
+  try {
+    // Verify work exists
+    const work = await db.select()
+      .from(worksTable)
+      .where(eq(worksTable.id, input.work_id))
+      .execute();
+
+    if (work.length === 0) {
+      throw new Error(`Work with id ${input.work_id} not found`);
+    }
+
+    // Calculate current total percentage for this work
+    const existingSplits = await db.select({
+      total: sum(royaltySplitsTable.percentage)
+    })
+      .from(royaltySplitsTable)
+      .where(eq(royaltySplitsTable.work_id, input.work_id))
+      .execute();
+
+    const currentTotal = parseFloat(existingSplits[0]?.total?.toString() || '0');
+    const newTotal = currentTotal + input.percentage;
+
+    if (newTotal > 100) {
+      throw new Error(`Total percentage cannot exceed 100%. Current total: ${currentTotal}%, trying to add: ${input.percentage}%`);
+    }
+
+    // Insert royalty split record
+    const result = await db.insert(royaltySplitsTable)
+      .values({
+        work_id: input.work_id,
+        recipient_type: input.recipient_type,
+        recipient_id: input.recipient_id,
+        percentage: input.percentage,
+        role_description: input.role_description
+      })
+      .returning()
+      .execute();
+
+    return result[0];
+  } catch (error) {
+    console.error('Royalty split creation failed:', error);
+    throw error;
+  }
+};

@@ -1,10 +1,23 @@
 
+import { db } from '../db';
+import { tenantsTable } from '../db/schema';
 import { type Tenant } from '../schema';
+import { desc } from 'drizzle-orm';
 
-export async function getTenants(): Promise<Tenant[]> {
-  // This is a placeholder declaration! Real code should be implemented here.
-  // The goal of this handler is fetching all tenants from the database.
-  // This is typically used by super admins to view and manage all music labels/producers.
-  // Should include proper filtering, pagination, and sorting capabilities.
-  return Promise.resolve([]);
-}
+export const getTenants = async (): Promise<Tenant[]> => {
+  try {
+    const results = await db.select()
+      .from(tenantsTable)
+      .orderBy(desc(tenantsTable.created_at))
+      .execute();
+
+    return results.map(tenant => ({
+      ...tenant,
+      max_artists: tenant.max_artists,
+      max_works: tenant.max_works
+    }));
+  } catch (error) {
+    console.error('Failed to fetch tenants:', error);
+    throw error;
+  }
+};

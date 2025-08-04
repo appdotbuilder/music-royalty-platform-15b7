@@ -1,9 +1,27 @@
 
+import { db } from '../db';
+import { tenantsTable } from '../db/schema';
 import { type Tenant } from '../schema';
+import { eq } from 'drizzle-orm';
 
-export async function getTenantById(id: number): Promise<Tenant | null> {
-  // This is a placeholder declaration! Real code should be implemented here.
-  // The goal of this handler is fetching a specific tenant by ID from the database.
-  // Should include proper access control to ensure users can only access their own tenant data.
-  return Promise.resolve(null);
-}
+export const getTenantById = async (id: number): Promise<Tenant | null> => {
+  try {
+    const results = await db.select()
+      .from(tenantsTable)
+      .where(eq(tenantsTable.id, id))
+      .execute();
+
+    if (results.length === 0) {
+      return null;
+    }
+
+    const tenant = results[0];
+    return {
+      ...tenant,
+      // No numeric conversions needed - all fields are already the correct types
+    };
+  } catch (error) {
+    console.error('Failed to get tenant by id:', error);
+    throw error;
+  }
+};

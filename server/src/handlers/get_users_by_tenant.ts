@@ -1,10 +1,19 @@
 
+import { db } from '../db';
+import { usersTable } from '../db/schema';
+import { eq } from 'drizzle-orm';
 import { type User } from '../schema';
 
-export async function getUsersByTenant(tenantId: number): Promise<User[]> {
-  // This is a placeholder declaration! Real code should be implemented here.
-  // The goal of this handler is fetching all users belonging to a specific tenant.
-  // Should implement proper row-level security to ensure data isolation between tenants.
-  // Useful for label admins to manage their team members and artists.
-  return Promise.resolve([]);
-}
+export const getUsersByTenant = async (tenantId: number): Promise<User[]> => {
+  try {
+    const results = await db.select()
+      .from(usersTable)
+      .where(eq(usersTable.tenant_id, tenantId))
+      .execute();
+
+    return results;
+  } catch (error) {
+    console.error('Failed to get users by tenant:', error);
+    throw error;
+  }
+};
